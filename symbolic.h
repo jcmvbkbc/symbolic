@@ -150,6 +150,12 @@ public:
 			return std::lexicographical_compare(m_neg.begin(), m_neg.end(),
 							    v.m_neg.begin(), v.m_neg.end());
 	}
+	bool includes(const Conjunction& v) const
+	{
+		if (m_type != SYMBOLIC_EXPRESSION || v.m_type != SYMBOLIC_EXPRESSION)
+			return false;
+		return std::includes(m_neg.begin(), m_neg.end(), v.m_neg.begin(), v.m_neg.end());
+	}
 
 	std::ostream& to_stream(std::ostream& stm) const
 	{
@@ -192,6 +198,16 @@ struct Expression
 			}
 		}
 	}
+	void reduce_prefix()
+	{
+		for (auto it = m_dis.begin(); it != m_dis.end(); ++it) {
+			for (auto jt = m_dis.begin(); jt != m_dis.end();)
+				if (it != jt && jt->includes(*it))
+					m_dis.erase(jt++);
+				else
+					++jt;
+		}
+	}
 	void reduce()
 	{
 		if (m_type == SYMBOLIC_CONST) {
@@ -219,6 +235,7 @@ struct Expression
 			m_const = false;
 		} else {
 			reduce_neg();
+			reduce_prefix();
 		}
 	}
 public:
