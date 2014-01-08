@@ -242,8 +242,14 @@ int main()
 	Wide<32> h[5];
 	Wide<8> data[1];
 
-	data[0].set(0, Symbolic("bit", 0));
-	//data[0].set(1, Symbolic("bit", 1));
+	data[0].set(0, Symbolic("x", 0));
+	data[0].set(1, Symbolic("x", 1));
+	data[0].set(2, Symbolic("x", 2));
+	data[0].set(3, Symbolic("x", 3));
+	//data[0].set(4, Symbolic("x", 4));
+	//data[0].set(5, Symbolic("x", 5));
+	//data[0].set(6, Symbolic("x", 6));
+	//data[0].set(7, Symbolic("x", 7));
 	s.add(data, data + ARRAY_SIZE(data));
 	s.terminate(h);
 	std::cout << std::hex << h[0] << ":" << h[1] << ":" << h[2] << ":" << h[3] << ":" << h[4] << std::endl;
