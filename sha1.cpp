@@ -1,7 +1,10 @@
 #include <algorithm>
 #include <inttypes.h>
 #include <iostream>
+#include <memory>
 #include <vector>
+
+#include "symbolic.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
@@ -24,7 +27,7 @@ class Sha1
 		T32 w[80] = {0};
 		for (int i = 0; i < 16; ++i) {
 			for (int j = 0; j < 4; ++j)
-				w[i] |= m_buf[i * 4 + 3 - j] << (j * 8);
+				w[i] |= T32(m_buf[i * 4 + 3 - j]) << (j * 8);
 		}
 		for (int i = 16; i < 80; ++i) {
 			w[i] = rol(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
@@ -72,8 +75,7 @@ public:
 			0x10325476,
 			0xC3D2E1F0,
 		};
-		for (int i = 0; i < ARRAY_SIZE(h); ++i)
-			m_h[i] = h[i];
+		std::copy(h, h + 5, m_h);
 	}
 
 	template<typename Iterator>
@@ -104,10 +106,147 @@ public:
 	}
 };
 
+template<int W>
+class Wide
+{
+	Symbolic m_data[W];
+
+public:
+	Wide(uint32_t v = 0)
+	{
+		for (int i = 0; i < W; ++i, v >>= 1)
+			m_data[i] = v & 1;
+	}
+	template<int Z>
+	Wide(const Wide<Z>& v)
+	{
+		for (int i = 0; i < std::min(W, Z); ++i)
+			m_data[i] = v.get(i);
+	}
+
+	const Symbolic& get(int i) const
+	{
+		return m_data[i];
+	}
+	void set(int i, const Symbolic& v)
+	{
+		m_data[i] = v;
+	}
+
+	Wide operator ~() const
+	{
+		Wide w;
+
+		for (int i = 0; i < W; ++i)
+			w.m_data[i] = ~m_data[i];
+		return w;
+	}
+
+	Wide operator |(const Wide& v) const
+	{
+		Wide w;
+
+		for (int i = 0; i < W; ++i)
+			w.m_data[i] = m_data[i] | v.m_data[i];
+		return w;
+	}
+	Wide& operator |=(const Wide& v)
+	{
+		for (int i = 0; i < W; ++i)
+			m_data[i] = m_data[i] | v.m_data[i];
+		return *this;
+	}
+
+	Wide operator &(const Wide& v) const
+	{
+		Wide w;
+
+		for (int i = 0; i < W; ++i)
+			w.m_data[i] = m_data[i] & v.m_data[i];
+		return w;
+	}
+
+	Wide operator ^(const Wide& v) const
+	{
+		Wide w;
+
+		for (int i = 0; i < W; ++i)
+			w.m_data[i] = m_data[i] ^ v.m_data[i];
+		return w;
+	}
+
+	Wide operator <<(int sz) const
+	{
+		Wide w;
+
+		for (int i = 0; i < W; ++i)
+			if (i < sz)
+				w.m_data[i] = 0;
+			else
+				w.m_data[i] = m_data[i - sz];
+		return w;
+	}
+
+	Wide operator >>(int sz) const
+	{
+		Wide w;
+
+		for (int i = 0; i < W; ++i)
+			if (i + sz < W)
+				w.m_data[i] = m_data[i + sz];
+			else
+				w.m_data[i] = 0;
+		return w;
+	}
+
+	Wide operator +(const Wide& v) const
+	{
+		Wide w;
+		Symbolic c;
+
+		for (int i = 0; i < W; ++i) {
+			Symbolic a = m_data[i];
+			Symbolic b = v.m_data[i];
+
+			w.m_data[i] = a ^ b ^ c;
+			c = (a & b) | (a & c) | (b & c);
+		}
+		return w;
+	}
+	Wide& operator +=(const Wide& v)
+	{
+		*this = *this + v;
+		return *this;
+	}
+
+	std::ostream& to_stream(std::ostream& stm) const
+	{
+		stm << "{" << std::endl;
+		for (int i = 0; i < W; ++i) {
+			stm << "    [" << i << "] = {" << m_data[i] << "}," << std::endl;
+		}
+		stm << "}";
+		return stm;
+	}
+};
+
+template<int W>
+std::ostream& operator <<(std::ostream& stm, const Wide<W>& v)
+{
+	return v.to_stream(stm);
+}
+
 int main()
 {
-	Sha1<uint8_t, uint32_t> s;
-	uint32_t h[5];
+	//Sha1<uint8_t, uint32_t> s;
+	//uint32_t h[5];
+	Sha1<Wide<8>, Wide<32> > s;
+	Wide<32> h[5];
+	Wide<8> data[1];
+
+	data[0].set(0, Symbolic("bit", 0));
+	data[0].set(1, Symbolic("bit", 1));
+	s.add(data, data + ARRAY_SIZE(data));
 	s.terminate(h);
 	std::cout << std::hex << h[0] << ":" << h[1] << ":" << h[2] << ":" << h[3] << ":" << h[4] << std::endl;
 	return 0;
