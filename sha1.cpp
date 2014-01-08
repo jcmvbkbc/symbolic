@@ -238,14 +238,12 @@ std::ostream& operator <<(std::ostream& stm, const Wide<W>& v)
 
 int main()
 {
-	//Sha1<uint8_t, uint32_t> s;
-	//uint32_t h[5];
 	Sha1<Wide<8>, Wide<32> > s;
 	Wide<32> h[5];
 	Wide<8> data[1];
 
 	data[0].set(0, Symbolic("bit", 0));
-	data[0].set(1, Symbolic("bit", 1));
+	//data[0].set(1, Symbolic("bit", 1));
 	s.add(data, data + ARRAY_SIZE(data));
 	s.terminate(h);
 	std::cout << std::hex << h[0] << ":" << h[1] << ":" << h[2] << ":" << h[3] << ":" << h[4] << std::endl;
