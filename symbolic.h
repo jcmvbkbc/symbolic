@@ -156,6 +156,31 @@ public:
 			return false;
 		return std::includes(m_neg.begin(), m_neg.end(), v.m_neg.begin(), v.m_neg.end());
 	}
+	bool exclusive_or(const Conjunction& v, Conjunction& rv) const
+	{
+		if (m_type != SYMBOLIC_EXPRESSION || v.m_type != SYMBOLIC_EXPRESSION)
+			return false;
+		if (m_neg.size() != v.m_neg.size())
+			return false;
+
+		rv = *this;
+		int n = 0;
+		for (auto it = rv.m_neg.begin(), jt = v.m_neg.begin(); it != rv.m_neg.end(); ++jt) {
+			if (!(*it == *jt)) {
+				if (*it == ~*jt && n == 0) {
+					++n;
+					rv.m_neg.erase(it++);
+				} else {
+					return false;
+				}
+			} else {
+				++it;
+			}
+		}
+		if (rv.m_neg.empty())
+			rv = Conjunction(true);
+		return n == 1;
+	}
 
 	std::ostream& to_stream(std::ostream& stm) const
 	{
@@ -189,12 +214,20 @@ struct Expression
 
 	void reduce_neg()
 	{
+	restart:
 		for (auto it = m_dis.begin(); it != m_dis.end(); ++it) {
-			Expression v = ~*it;
-
-			if (v.m_dis.size() == 1 && m_dis.find(*v.m_dis.begin()) != m_dis.end()) {
-				*this = Expression(true);
-				break;
+			for (auto jt = m_dis.begin(); jt != m_dis.end(); ++jt) {
+				Conjunction c;
+				if (it != jt && it->exclusive_or(*jt, c)) {
+					m_dis.erase(it);
+					m_dis.erase(jt);
+					if (c == true) {
+						*this = Expression(true);
+						return;
+					}
+					m_dis.insert(c);
+					goto restart;
+				}
 			}
 		}
 	}
