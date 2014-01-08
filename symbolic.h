@@ -181,6 +181,17 @@ struct Expression
 	bool m_const;
 	std::set<Conjunction> m_dis;
 
+	void reduce_neg()
+	{
+		for (auto it = m_dis.begin(); it != m_dis.end(); ++it) {
+			Expression v = ~*it;
+
+			if (v.m_dis.size() == 1 && m_dis.find(*v.m_dis.begin()) != m_dis.end()) {
+				*this = Expression(true);
+				break;
+			}
+		}
+	}
 	void reduce()
 	{
 		if (m_type == SYMBOLIC_CONST) {
@@ -206,6 +217,8 @@ struct Expression
 		if (m_dis.empty()) {
 			m_type = SYMBOLIC_CONST;
 			m_const = false;
+		} else {
+			reduce_neg();
 		}
 	}
 public:
